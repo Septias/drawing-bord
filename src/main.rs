@@ -25,18 +25,21 @@ fn distance (p1: &Point2<f32>, p2: &Point2<f32>) -> f32{
     ((p1.x - p2.x).powf(2.) + (p1.y - p2.y).powf(2.)).sqrt()
 }
 
+const CLEAR_COLOR: graphics::Color = graphics::Color::new(0.9, 0.87, 0.72, 1.0);
+
 impl ggez::event::EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        graphics::clear(ctx, CLEAR_COLOR);
         for line in &self.lines {
             graphics::draw(ctx, line, graphics::DrawParam::default())?; 
         }
        
         if self.current_line.is_some() {
             let points = &self.current_line.as_ref().unwrap().points;
-            let current_line = graphics::Mesh::new_line(ctx, points, 1., graphics::WHITE)?;
+            let current_line = graphics::Mesh::new_line(ctx, points, 3., graphics::BLACK)?;
             graphics::draw(ctx, &current_line, graphics::DrawParam::default())?;
         }
         graphics::present(ctx)?;
@@ -55,7 +58,7 @@ impl ggez::event::EventHandler for State {
     }
     fn mouse_button_up_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32){
         self.mouse_down = false;
-        let line = graphics::Mesh::new_line(ctx, &self.current_line.take().unwrap().points, 1.0, graphics::WHITE).unwrap();
+        let line = graphics::Mesh::new_line(ctx, &self.current_line.take().unwrap().points, 3.0, graphics::BLACK).unwrap();
         self.lines.push(line);
     }
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32){
@@ -83,8 +86,11 @@ fn main() {
         current_line: None,
         lines: vec![]
     };
+
     let cb =
-        ggez::ContextBuilder::new("Back to the drawing board", "Sebastian motherfucking klähn");
+        ggez::ContextBuilder::new("Back to the drawing board", "Sebastian motherfucking klähn")
+        .window_setup(conf::WindowSetup::default().title("Drawing bord"))
+        .window_mode(conf::WindowMode::default().resizable(true)); //.borderless(true)
     let (ref mut ctx, ref mut event_loop) = &mut cb.build().unwrap();
     event::run(ctx, event_loop, state).unwrap();
 }
