@@ -39,12 +39,7 @@ impl ggez::event::EventHandler for State {
         for line in &self.lines {
             graphics::draw(ctx, line, graphics::DrawParam::default())?; 
         }
-       
-        if self.current_line.is_some() {
-            let points = &self.current_line.as_ref().unwrap().points;
-            let current_line = graphics::Mesh::new_line(ctx, points, 3., graphics::BLACK)?;
-            graphics::draw(ctx, &current_line, graphics::DrawParam::default())?;
-        }
+        graphics::set_window_title(ctx, &format!("{:.0} FPS", timer::fps(ctx)));
         graphics::present(ctx)?;
         Ok(())
         
