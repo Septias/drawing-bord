@@ -82,6 +82,8 @@ impl ggez::event::EventHandler for State {
             }
             }
         }
+    fn resize_event(&mut self, ctx: &mut Context, width: f32, height: f32) {
+        graphics::set_screen_coordinates(ctx, graphics::Rect::new(0.0, 0.0, width, height)).unwrap();
     }
 }
 
