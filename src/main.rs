@@ -30,8 +30,6 @@ fn distance (p1: &Point2, p2: &Point2) -> f64{
     ((p1[0] - p2[1]).powf(2.) as f64 + (p1.y - p2.y).powf(2.) as f64).sqrt()
 }
 
-const CLEAR_COLOR: graphics::Color = graphics::Color::new(0.9, 0.87, 0.72, 1.0);
-
 impl ggez::event::EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
@@ -51,7 +49,8 @@ impl ggez::event::EventHandler for State {
         Ok(())
         
     }
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32){
+    
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, x: f32, y: f32){
         self.mouse_down = true;
         self.current_line = Some(Line::new());
 
@@ -66,7 +65,7 @@ impl ggez::event::EventHandler for State {
         let line = graphics::Mesh::new_line(ctx, &self.current_line.take().unwrap().points, 3.0, graphics::BLACK).unwrap();
         self.lines.push(line);
     }
-    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32){
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32){
         if self.mouse_down{
             let line = self.current_line.as_mut().unwrap();
             line.points.pop();
