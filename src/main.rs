@@ -33,6 +33,12 @@ impl ggez::event::EventHandler for State {
         for line in &self.lines {
             graphics::draw(ctx, line, graphics::DrawParam::default())?; 
         }
+       
+        if self.current_line.is_some() {
+            let points = &self.current_line.as_ref().unwrap().points;
+            let current_line = graphics::Mesh::new_line(ctx, points, 1., graphics::WHITE)?;
+            graphics::draw(ctx, &current_line, graphics::DrawParam::default())?;
+        }
         graphics::present(ctx)?;
         Ok(())
         
@@ -40,21 +46,32 @@ impl ggez::event::EventHandler for State {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32){
         self.mouse_down = true;
         self.current_line = Some(Line::new());
-        self.current_line.as_mut().unwrap().points.push(Point2{x: _x, y: _y})
+
+        // push twice because one point is the origin and the second one gets replaced with the mouse position
+        self.current_line.as_mut().unwrap().points.push(Point2{x: _x, y: _y});
+        self.current_line.as_mut().unwrap().points.push(Point2{x: _x + 1., y: _y}); // +1. because they have to be unique
+
 
     }
-    fn mouse_button_up_event(&mut self, _ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32){
+    fn mouse_button_up_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32){
         self.mouse_down = false;
-        let line = graphics::Mesh::new_line(_ctx, &self.current_line.take().unwrap().points, 1.0, graphics::WHITE).unwrap();
+        let line = graphics::Mesh::new_line(ctx, &self.current_line.take().unwrap().points, 1.0, graphics::WHITE).unwrap();
         self.lines.push(line);
     }
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32){
         if self.mouse_down{
             let line = self.current_line.as_mut().unwrap();
-            let last_point = line.points.last().unwrap();
+            line.points.pop();
+            let last_point = line.points.last().unwrap().clone();
             let current_position = mint::Point2{x: _x, y: _y};
-            if distance(last_point, &current_position) > 5. {
+            if distance(&last_point, &current_position) > 5. {
                 line.points.push(current_position)
+            }
+            if &current_position == &last_point{
+                line.points.push(Point2{x: _x + 1., y: _y})
+            }
+            else {
+                line.points.push(Point2{x: _x, y: _y})
             }
         }
     }
@@ -63,7 +80,7 @@ impl ggez::event::EventHandler for State {
 fn main() {
     let state = &mut State {
         mouse_down: false,
-        current_line: Some(Line::new()),
+        current_line: None,
         lines: vec![]
     };
     let cb =
