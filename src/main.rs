@@ -4,7 +4,6 @@ use nalgebra as na;
 
 // variables
 const CLEAR_COLOR: graphics::Color = graphics::Color::new(0.9, 0.87, 0.72, 1.0); // background-color
-
 type Point2 = na::Point2<f32>;
 
 #[derive(Debug)]
@@ -15,6 +14,27 @@ struct Line {
 impl Line {
     fn new() -> Self {
         Line { points: vec![] }
+    }
+}
+
+struct BoundingRect {
+    points: [Point2; 2],
+}
+
+impl BoundingRect {
+    fn new(points: [Point2; 2]) -> Self {
+        BoundingRect { points }
+    }
+    fn get_rect(&self, ctx: &mut Context) -> graphics::Mesh {
+        let w = self.points[1][0] - self.points[0][0];
+        let h = self.points[1][1] - self.points[0][1];
+        graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::stroke(1.),
+            graphics::Rect::new(self.points[0][0], self.points[0][1], w, h),
+            graphics::BLACK,
+        )
+        .unwrap()
     }
 }
 
@@ -46,8 +66,11 @@ impl ggez::event::EventHandler for State {
     }
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, CLEAR_COLOR);
-        for line in &self.lines {
-            graphics::draw(ctx, line, graphics::DrawParam::default())?;
+        for drawable in &self.drawings {
+            graphics::draw(ctx, &drawable.mesh, graphics::DrawParam::default())?;
+            let bounding_rect = &drawable.bounding_rect;
+            let rect = bounding_rect.get_rect(ctx);
+            graphics::draw(ctx, &rect, graphics::DrawParam::default()).unwrap();
         }
         graphics::set_window_title(ctx, &format!("{:.0} FPS", timer::fps(ctx)));
         graphics::present(ctx)?;
@@ -78,14 +101,13 @@ impl ggez::event::EventHandler for State {
     }
     fn mouse_button_up_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
         self.mouse_down = false;
-        let line = graphics::Mesh::new_line(
-            ctx,
-            &self.current_line.take().unwrap().points,
-            3.0,
-            graphics::BLACK,
-        )
-        .unwrap();
-        self.lines.push(line);
+        let puontos = self.current_line.take().unwrap().points;
+        let line_mesh = graphics::Mesh::new_line(ctx, &puontos, 3.0, graphics::BLACK).unwrap();
+        self.drawings.push(DrawnStructure::new(
+            self.magnification,
+            line_mesh,
+            BoundingRect::new(create_bounding_rect(&puontos)),
+        ));
     }
     fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32) {
         if self.mouse_down {
@@ -136,7 +158,6 @@ mod tests {
             Point2::new(2., 3.),
         ];
         let rect = create_bounding_rect(&points);
-        println!("{:?}", rect);
         assert_eq!(rect, [Point2::new(0., 0.), Point2::new(3., 3.)]);
     }
 }
