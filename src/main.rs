@@ -17,6 +17,21 @@ impl Line {
     }
 }
 
+struct DrawnStructure {
+    font_size: f64,
+    mesh: graphics::Mesh,
+    bounding_rect: BoundingRect,
+}
+impl DrawnStructure {
+    fn new(font_size: f64, mesh: graphics::Mesh, bounding_rect: BoundingRect) -> Self {
+        DrawnStructure {
+            font_size,
+            mesh,
+            bounding_rect,
+        }
+    }
+}
+
 struct BoundingRect {
     points: [Point2; 2],
 }
@@ -41,7 +56,8 @@ impl BoundingRect {
 struct State {
     mouse_down: bool,
     current_line: Option<Line>,
-    lines: Vec<graphics::Mesh>,
+    drawings: Vec<DrawnStructure>,
+    magnification: f64,
 }
 
 fn distance(p1: &Point2, p2: &Point2) -> f64 {
@@ -135,7 +151,8 @@ fn main() {
     let state = &mut State {
         mouse_down: false,
         current_line: None,
-        lines: vec![],
+        drawings: vec![],
+        magnification: 1.,
     };
 
     let cb =
