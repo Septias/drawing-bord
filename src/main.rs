@@ -28,6 +28,18 @@ fn distance(p1: &Point2, p2: &Point2) -> f64 {
     ((p1[0] - p2[1]).powf(2.) as f64 + (p1.y - p2.y).powf(2.) as f64).sqrt()
 }
 
+fn create_bounding_rect(points: &Vec<Point2>) -> [Point2; 2] {
+    let (mut min_x, mut max_x, mut min_y, mut max_y) = (0., 0., 0., 0.);
+    for point in points {
+        min_x = if point[0] < min_x { point[0] } else { min_x };
+        max_x = if point[0] > max_x { point[0] } else { max_x };
+        min_y = if point[0] < min_y { point[0] } else { min_y };
+        max_y = if point[0] > max_y { point[0] } else { max_y };
+    }
+    println!("{}", min_x > min_y);
+    return [Point2::new(min_x, min_y), Point2::new(max_x, max_y)];
+}
+
 impl ggez::event::EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
@@ -110,4 +122,21 @@ fn main() {
             .window_mode(conf::WindowMode::default().resizable(true)); //.borderless(true)
     let (ref mut ctx, ref mut event_loop) = &mut cb.build().unwrap();
     event::run(ctx, event_loop, state).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bounding_box_test() {
+        let points = vec![
+            Point2::new(0., 2.),
+            Point2::new(2., 1.),
+            Point2::new(3., 0.),
+            Point2::new(2., 3.),
+        ];
+        let rect = create_bounding_rect(&points);
+        println!("{:?}", rect);
+        assert_eq!(rect, [Point2::new(0., 0.), Point2::new(3., 3.)]);
+    }
 }
