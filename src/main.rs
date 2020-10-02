@@ -65,14 +65,15 @@ fn distance(p1: &Point2, p2: &Point2) -> f64 {
 }
 
 fn create_bounding_rect(points: &Vec<Point2>) -> [Point2; 2] {
-    let (mut min_x, mut max_x, mut min_y, mut max_y) = (0., 0., 0., 0.);
+    let point0 = &points[0];
+    let (mut min_x, mut max_y) = (point0[0], point0[1]);
+    let (mut max_x, mut min_y) = (point0[0], point0[1]);
     for point in points {
         min_x = if point[0] < min_x { point[0] } else { min_x };
         max_x = if point[0] > max_x { point[0] } else { max_x };
-        min_y = if point[0] < min_y { point[0] } else { min_y };
-        max_y = if point[0] > max_y { point[0] } else { max_y };
+        min_y = if point[1] < min_y { point[1] } else { min_y };
+        max_y = if point[1] > max_y { point[1] } else { max_y };
     }
-    println!("{}", min_x > min_y);
     return [Point2::new(min_x, min_y), Point2::new(max_x, max_y)];
 }
 
