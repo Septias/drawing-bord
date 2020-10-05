@@ -2,6 +2,7 @@ use ggez::graphics::DrawMode;
 use ggez::input::mouse::MouseButton;
 use ggez::*;
 use nalgebra as na;
+use std::collections::HashSet;
 
 // variables
 const CLEAR_COLOR: graphics::Color = graphics::Color::new(0.9, 0.87, 0.72, 1.0); // background-color
@@ -17,17 +18,19 @@ struct DrawnLine {
     font_size: f32,
     magnification: f32,
     mesh: Option<graphics::Mesh>,
-    points: Vec<Point2>,
+    points: HashSet<Point2>,
     position: Point2,
     draw_params: graphics::DrawParam,
 }
 
 impl DrawnLine {
     fn new(font_size: f32, magnification: f32, point0: Point2) -> Self {
+        let hashset = HashSet::new();
+        hashset.insert(point0);
         DrawnLine {
             font_size,
             magnification,
-            points: vec![point0],
+            points: hashset,
             position: point0,
             mesh: None,
             draw_params: graphics::DrawParam::default(),
