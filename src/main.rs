@@ -1,3 +1,4 @@
+use ggez::graphics::DrawMode;
 use ggez::input::mouse::MouseButton;
 use ggez::*;
 use nalgebra as na;
@@ -6,28 +7,57 @@ use nalgebra as na;
 const CLEAR_COLOR: graphics::Color = graphics::Color::new(0.9, 0.87, 0.72, 1.0); // background-color
 type Point2 = na::Point2<f32>;
 
-#[derive(Debug)]
-struct Line {
-    points: Vec<Point2>,
+trait CreateRender {
+    fn notify_mouse_move(&mut self, ctx: &mut Context, pos: Point2);
+    fn draw(&self, _ctx: &mut Context, magnification: &f32);
 }
 
-impl Line {
-    fn new() -> Self {
-        Line { points: vec![] }
+#[derive(Debug)]
+struct DrawnLine {
+    font_size: f32,
+    magnification: f32,
+    mesh: Option<graphics::Mesh>,
+    points: Vec<Point2>,
+    position: Point2,
+    draw_params: graphics::DrawParam,
+}
+
+impl DrawnLine {
+    fn new(font_size: f32, magnification: f32, point0: Point2) -> Self {
+        DrawnLine {
+            font_size,
+            magnification,
+            points: vec![point0],
+            position: point0,
+            mesh: None,
+            draw_params: graphics::DrawParam::default(),
+        }
     }
 }
 
-struct DrawnStructure {
-    font_size: f64,
-    mesh: graphics::Mesh,
-    bounding_rect: BoundingRect,
-}
-impl DrawnStructure {
-    fn new(font_size: f64, mesh: graphics::Mesh, bounding_rect: BoundingRect) -> Self {
-        DrawnStructure {
-            font_size,
-            mesh,
-            bounding_rect,
+impl CreateRender for DrawnLine {
+    fn draw(&self, ctx: &mut Context, magnification: &f32) {
+        if let Some(mesh) = &self.mesh {
+            graphics::draw(ctx, mesh, self.draw_params).unwrap();
+        }
+    }
+    fn notify_mouse_move(&mut self, ctx: &mut Context, pos: Point2) {
+        let last_point = &self.points[self.points.len() - 1];
+        if na::distance(last_point, &pos) > 2. {
+            self.points.push(pos);
+        }
+        self.mesh = match self.points.len() {
+            1 if self.points[0] != pos => {
+                let mut mouse_and_point = self.points.clone();
+                mouse_and_point.push(pos);
+                assert_eq!(mouse_and_point.len(), 2);
+                Some(graphics::Mesh::new_line(ctx, &mouse_and_point, 4.0, graphics::BLACK).unwrap())
+            }
+            1 => Some(
+                graphics::Mesh::new_circle(ctx, DrawMode::fill(), pos, 4.0, 1.0, graphics::BLACK)
+                    .unwrap(),
+            ),
+            _ => Some(graphics::Mesh::new_line(ctx, &self.points, 4.0, graphics::BLACK).unwrap()),
         }
     }
 }
@@ -55,16 +85,12 @@ impl BoundingRect {
 
 struct State {
     mouse_down: bool,
-    current_line: Option<Line>,
-    drawings: Vec<DrawnStructure>,
-    magnification: f64,
+    current_struct: Option<Box<dyn CreateRender>>,
+    structures: Vec<Box<dyn CreateRender>>,
+    magnification: f32,
 }
 
-fn distance(p1: &Point2, p2: &Point2) -> f64 {
-    ((p1[0] - p2[1]).powf(2.) as f64 + (p1.y - p2.y).powf(2.) as f64).sqrt()
-}
-
-fn create_bounding_rect(points: &Vec<Point2>) -> [Point2; 2] {
+fn create_bounding_rect(points: &Vec<Point2>) -> BoundingRect {
     let point0 = &points[0];
     let (mut min_x, mut max_y) = (point0[0], point0[1]);
     let (mut max_x, mut min_y) = (point0[0], point0[1]);
@@ -74,7 +100,7 @@ fn create_bounding_rect(points: &Vec<Point2>) -> [Point2; 2] {
         min_y = if point[1] < min_y { point[1] } else { min_y };
         max_y = if point[1] > max_y { point[1] } else { max_y };
     }
-    return [Point2::new(min_x, min_y), Point2::new(max_x, max_y)];
+    return BoundingRect::new([Point2::new(min_x, min_y), Point2::new(max_x, max_y)]);
 }
 
 impl ggez::event::EventHandler for State {
@@ -83,11 +109,11 @@ impl ggez::event::EventHandler for State {
     }
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, CLEAR_COLOR);
-        for drawable in &self.drawings {
-            graphics::draw(ctx, &drawable.mesh, graphics::DrawParam::default())?;
-            let bounding_rect = &drawable.bounding_rect;
-            let rect = bounding_rect.get_rect(ctx);
-            graphics::draw(ctx, &rect, graphics::DrawParam::default()).unwrap();
+        for structure in &self.structures {
+            structure.draw(ctx, &4.0);
+        }
+        if let Some(structure) = &self.current_struct {
+            structure.draw(ctx, &self.magnification);
         }
         graphics::set_window_title(ctx, &format!("{:.0} FPS", timer::fps(ctx)));
         graphics::present(ctx)?;
@@ -102,44 +128,24 @@ impl ggez::event::EventHandler for State {
         y: f32,
     ) {
         self.mouse_down = true;
-        self.current_line = Some(Line::new());
-
-        // push twice because one point is the origin and the second one gets replaced with the mouse position
-        self.current_line
-            .as_mut()
-            .unwrap()
-            .points
-            .push(Point2::new(x, y));
-        self.current_line
-            .as_mut()
-            .unwrap()
-            .points
-            .push(Point2::new(x + 1., y)); // +1. because they have to be unique
+        let structure = Box::new(DrawnLine::new(5.0, 1.0, Point2::new(x, y)));
+        self.current_struct = Some(structure);
     }
-    fn mouse_button_up_event(&mut self, ctx: &mut Context, _button: MouseButton, _x: f32, _y: f32) {
+    fn mouse_button_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
         self.mouse_down = false;
-        let puontos = self.current_line.take().unwrap().points;
-        let line_mesh = graphics::Mesh::new_line(ctx, &puontos, 3.0, graphics::BLACK).unwrap();
-        self.drawings.push(DrawnStructure::new(
-            self.magnification,
-            line_mesh,
-            BoundingRect::new(create_bounding_rect(&puontos)),
-        ));
+        self.structures.push(self.current_struct.take().unwrap());
     }
-    fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32) {
+    fn mouse_motion_event(&mut self, ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32) {
         if self.mouse_down {
-            let line = self.current_line.as_mut().unwrap();
-            line.points.pop();
-            let last_point = line.points.last().unwrap().clone();
-            let current_position = Point2::new(x, y);
-            if distance(&last_point, &current_position) > 2. {
-                line.points.push(current_position)
-            }
-            if &current_position == &last_point {
-                line.points.push(Point2::new(x, y))
-            } else {
-                line.points.push(Point2::new(x, y))
-            }
+            if let Some(current_struct) = &mut self.current_struct {
+                current_struct.notify_mouse_move(ctx, Point2::new(x, y));
+            };
         }
     }
     fn resize_event(&mut self, ctx: &mut Context, width: f32, height: f32) {
@@ -151,8 +157,8 @@ impl ggez::event::EventHandler for State {
 fn main() {
     let state = &mut State {
         mouse_down: false,
-        current_line: None,
-        drawings: vec![],
+        current_struct: None,
+        structures: vec![],
         magnification: 1.,
     };
 
